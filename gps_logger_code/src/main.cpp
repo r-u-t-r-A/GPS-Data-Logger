@@ -9,7 +9,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 
-#include <ElegantOTA.h>
+//#include <ElegantOTA.h>
 #include <Adafruit_NeoPixel.h>
 #include <DNSServer.h>
 
@@ -31,12 +31,14 @@
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(15, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 TinyGPSPlus gps;  // The TinyGPS++ object
-SoftwareSerial ss(4, 5); // The serial connection to the GPS device - rx - tx
+SoftwareSerial ss(5, 4); // The serial connection to the GPS device - rx - tx
 
 const int SDchipSelect = 16;
 
 const char* ssid = "GPS"; 
 const char* password = "123456";
+
+unsigned long old_ms = 0;
 
 float max_speed = 0.0;
 float current_speed = 0.0;
@@ -69,7 +71,7 @@ void handleRoot() {
 
   databuffer = String("<html><head><meta content=\"width=device-width\"><style> body{font-size: 56px; text-align:center; background-color:#11d0ed;}</style> <h1>GPS LOGGER<br> Max velocity: <a href=""/max"">max speed</a> <br>Current velocity: <a href=""/current"">current speed</a><br>Reset Data: <a href=""/reset"">reset</a><br>Start: <a href=""/start"">start</a><br>Stop log: <a href=""/stop"">stop</a><br>terminal: <a href=""/term.html"">terminal</a><br>update: <a href=""/update"">UPDATE</a></h1> <body>""</body></html>");
   server.send(200, "text/html", databuffer);
-  databuffer = "";
+  databuffer.remove(0);
 }
 
 void max_val()  {
@@ -78,7 +80,7 @@ void max_val()  {
   databuffer = "<html><head><meta http-equiv=\"refresh\" content =\"2\" content=\"width=device-width\"><style> body{font-size: 56px; text-align:center; background-color:#11d0ed;}</style> <body>"
          + databuffer + "</br><a href=""/"">home</a></body></html>";
   server.send(200, "text/html", databuffer);
-  databuffer = "";
+  databuffer.remove(0);
 }
 
 void current_val()  { 
@@ -87,7 +89,7 @@ void current_val()  {
   databuffer = "<html><head><meta http-equiv=\"refresh\" content =\"2\" content=\"width=device-width\"><style> body{font-size: 56px; text-align:center; background-color:#11d0ed;}</style> <body>" 
                 + databuffer + "</br><a href=""/"">home</a></body></html>";
   server.send(200, "text/html", databuffer);
-  databuffer = "";
+  databuffer.remove(0);
 }
 
 void reset()  {
@@ -102,17 +104,19 @@ void start_log() {
 	start_logging = true;
 	file_name.remove(0);
 	file_name = time_day + time_month + "H" + time_hour + time_minute + ".csv";
-	 File dataFile = SD.open(file_name, FILE_WRITE);
-  	dataFile.println("type,latitude,longitude,alt,speed,time,color");
-  	dataFile.close();
-
+	File dataFile = SD.open(file_name, FILE_WRITE);
+	if (dataFile) {
+		dataFile.println("type,latitude,longitude,alt,speed,time,color");
+  		dataFile.close();
+	}
+  	
 }
 
 void stop_log() {
 	server.send(200, "text/html", "<html><head><meta content=\"width=device-width\"><style> body{font-size: 56px; text-align:center; background-color:#11d0ed;}</style> <h1></h1> <body><p><a href=/>home</a></p></body></html>");
 	start_logging = false;
 }
-
+/*
 void onOTAStart() {
   // Log when OTA has started
   Serial.println("OTA update started!");
@@ -140,24 +144,67 @@ void onOTAEnd(bool success) {
 
 void progressCallBack(size_t currSize, size_t totalSize) {
       Serial.printf("CALLBACK:  Update process at %d of %d bytes...\n", currSize, totalSize);
-}
+}*/
 
 void setup()  {
 
   Serial.begin(115200);
   ss.begin(4800);
-	strip.begin();
+  strip.begin();
   strip.setBrightness(25);
   strip.show(); // Initialize all pixels to 'off'
   WiFi.softAPdisconnect();
-
-  //Serial.println("");
-   strip.setPixelColor(0, strip.Color(255, 0, 0));
-   strip.show();
-   delay(500);
-   strip.clear();
-   strip.show();
-   delay(1000);
+  if (SD.begin(SDchipSelect)) {
+  	FSInfo fs_info;
+  	SDFS.info(fs_info);
+ 
+  	Serial.print("Total bytes: ");
+  	Serial.println(fs_info.totalBytes);
+ 
+	Serial.print("Used bytes: ");
+  	Serial.println(fs_info.usedBytes);
+ 
+  	Serial.print(F("\nSearch for firmware.."));
+  	File firmware =  SD.open("/firmware.bin");
+  	if (firmware) {
+    	Serial.println(F("found!"));
+      	Serial.println(F("Try to update!"));
+ 
+     // Update.onProgress(progressCallBack);
+ 
+      	Update.begin(firmware.size(), U_FLASH);
+      	Update.writeStream(firmware);
+      	if (Update.end())	{
+        	Serial.println(F("Update finished!"));
+      	} else {
+          	Serial.println(F("Update error!"));
+          	Serial.println(Update.getError());
+      	}
+ 
+      	firmware.close();
+ 
+      	if (SD.rename("/firmware.bin", "/firmware.bak")) {
+        	Serial.println(F("Firmware rename succesfully!"));
+        } else {
+          	Serial.println(F("Firmware rename error!"));
+      	}
+      	delay(2000);
+ 
+      	ESP.reset();
+ 	} else {
+      	Serial.println(F("not found!"));
+  	} 
+  } else {
+    //Serial.println("SD card initialization done");
+    //ESP.reset();
+  }
+//Serial.println("");
+  strip.setPixelColor(0, strip.Color(255, 0, 0));
+  strip.show();
+  delay(500);
+  strip.clear();
+  strip.show();
+  delay(1000);
   
   Serial.print("Setting soft-AP configuration ... ");
   Serial.println(WiFi.softAPConfig(local_IP, gateway, subnet) ? "Ready" : "Failed!");
@@ -167,8 +214,8 @@ void setup()  {
   Serial.println(WiFi.softAP(ssid, "", 10, false, 4) ? "Ready" : "Failed!");
  // Serial.println(WiFi.softAP(ssid) ? "Ready" : "Failed!");
 
- Serial.print("Soft-AP IP address = ");
- Serial.println(WiFi.softAPIP());
+  Serial.print("Soft-AP IP address = ");
+  Serial.println(WiFi.softAPIP());
   server.on("/", handleRoot);
   server.on("/max", max_val);
   server.on("/current", current_val);
@@ -179,80 +226,34 @@ void setup()  {
 
   dnsServer.start(53, "*", WiFi.softAPIP());
 
-  ElegantOTA.begin(&server);    // Start ElegantOTA
+  //ElegantOTA.begin(&server);    // Start ElegantOTA
   // ElegantOTA callbacks
-  ElegantOTA.onStart(onOTAStart);
-  ElegantOTA.onProgress(onOTAProgress);
-  ElegantOTA.onEnd(onOTAEnd);
+ // ElegantOTA.onStart(onOTAStart);
+  //ElegantOTA.onProgress(onOTAProgress);
+ // ElegantOTA.onEnd(onOTAEnd);
   
   server.begin();
   //Serial.println("HTTP server started");
 
   term.begin(server);
   //Serial.println("websocket started");
-
-  if (!SD.begin(SDchipSelect)) {
-   // Serial.println("SD card initialization failed!");
-  } else {
-    //Serial.println("SD card initialization done");
-    //ESP.reset();
-  }
-
-   FSInfo fs_info;
-  SDFS.info(fs_info);
- 
-  Serial.print("Total bytes: ");
-  Serial.println(fs_info.totalBytes);
- 
-  Serial.print("Used bytes: ");
-  Serial.println(fs_info.usedBytes);
- 
-  Serial.print(F("\nSearch for firmware.."));
-  File firmware =  SD.open("/firmware.bin");
-  if (firmware) {
-      Serial.println(F("found!"));
-      Serial.println(F("Try to update!"));
- 
-      Update.onProgress(progressCallBack);
- 
-      Update.begin(firmware.size(), U_FLASH);
-      Update.writeStream(firmware);
-      if (Update.end()){
-          Serial.println(F("Update finished!"));
-      }else{
-          Serial.println(F("Update error!"));
-          Serial.println(Update.getError());
-      }
- 
-      firmware.close();
- 
-      if (SD.rename("/firmware.bin", "/firmware.bak")){
-          Serial.println(F("Firmware rename succesfully!"));
-      }else{
-          Serial.println(F("Firmware rename error!"));
-      }
-      delay(2000);
- 
-      ESP.reset();
-  }else{
-      Serial.println(F("not found!"));
-  }
- 
+/*
   pinMode(16, OUTPUT);
   digitalWrite(16, LOW);
   delay(1000);
-
+*/
 }
 
 void loop() {
- 
+	unsigned long curr_ms = millis();
   if (ss.available()) {//while data is available
     if (gps.encode(ss.read()))  {
-		//Serial.println("gps");
+		sat = gps.satellites.value();
+//		Serial.println("gps");
       if (gps.location.isValid()) {
-		if (run_term == true) {
+		/*if (run_term == true) {
 			term.println("gps");
-		}
+		}*/
         latitude = String(gps.location.lat(), 6);
         longtitude = String(gps.location.lng(), 6);
         altitude = String(gps.altitude.meters(), 3);
@@ -267,7 +268,7 @@ void loop() {
 
         current_speed = gps.speed.kmph();
          sat = gps.satellites.value();
-		 if (run_term == true) {
+		if (run_term == true) {
         term.print(sat);
 		term.print("  ");
 		term.print(latitude);
@@ -285,7 +286,7 @@ void loop() {
 		term.print(time_minute);
 		term.print("-");
 		term.println(time_second);
-		 }
+		 } 
 		if (current_speed > max_speed) {
 
           max_speed = current_speed;
@@ -319,9 +320,9 @@ void loop() {
           		dataFile.println(",blue");
 		  		dataFile.close();
         	} else {
-				 if (run_term == true) {
+				/* if (run_term == true) {
           		term.println("Can't save data");
-				 }
+				 }*/
         	} 
 		
 	  	} else {
@@ -333,8 +334,8 @@ void loop() {
 
     } else {
     //term.println("No GPS available on software term port");
-	 strip.setPixelColor(0, strip.Color(255, 0, 0));
-	 strip.show();
+	// strip.setPixelColor(0, strip.Color(255, 0, 0));
+	 //strip.show();
   }
   
   } 
@@ -354,170 +355,13 @@ void loop() {
 		break;
 	}
   }
-	term.handleClient();
+  term.handleClient();
   dnsServer.processNextRequest();
   server.handleClient();
-  ElegantOTA.loop();
+  if ((curr_ms - old_ms) > 10000) {
+	Serial.print("alive! ");
+	Serial.println(curr_ms);
+	old_ms = curr_ms;
+  }
+  //ElegantOTA.loop();
 } 
-
-
-// Test code for Adafruit GPS modules using MTK3329/MTK3339 driver
-//
-// This code shows how to listen to the GPS module in an interrupt
-// which allows the program to have more 'freedom' - just parse
-// when a new NMEA sentence is available! Then access data when
-// desired.
-//
-// Tested and works great with the Adafruit Ultimate GPS module
-// using MTK33x9 chipset
-//    ------> http://www.adafruit.com/products/746
-// Pick one up today at the Adafruit electronics shop
-// and help support open source hardware & software! -ada
-/*#include <TinyGPSPlus.h>
-#include <SoftwareSerial.h>
-
-#define RXPin 4
-#define TXPin 5
-#define GPSBaud 9600
-
-// The TinyGPSPlus object
-TinyGPSPlus gps;
-
-// The serial connection to the GPS device
-SoftwareSerial ss(RXPin, TXPin);
-
-static void smartDelay(unsigned long ms) {
-	unsigned long start = millis();
-	do {
-		while (ss.available()) {
-			gps.encode(ss.read());
-		}
-	} while (millis() - start < ms);
-}
-
-static void printFloat(float val, bool valid, int len, int prec) {
-	if (!valid) {
-		while (len-- > 1) {
-			Serial.print('*');
-		}
-		Serial.print(' ');
-	} else {
-		Serial.print(val, prec);
-		int vi = abs((int)val);
-		int flen = prec + (val < 0.0 ? 2 : 1); // . and -
-		flen += vi >= 1000 ? 4 : vi >= 100 ? 3 : vi >= 10 ? 2 : 1;
-		for (int i=flen; i<len; ++i) {
-			Serial.print(' ');
-		}
-	}
-	smartDelay(0);
-}
-
-static void printInt(unsigned long val, bool valid, int len) {
-	char sz[32] = "*****************";
-	if (valid) {
-		sprintf(sz, "%ld", val);
-	}
-	sz[len] = 0;
-	for (int i=strlen(sz); i<len; ++i) {
-		sz[i] = ' ';
-	}
-	if (len > 0) {
-		sz[len-1] = ' ';
-	}
-	Serial.print(sz);
-	smartDelay(0);
-}
-
-static void printDateTime(TinyGPSDate &d, TinyGPSTime &t) {
-	if (!d.isValid()) {
-		Serial.print(F("********** "));
-	} else {
-		char sz[32];
-		sprintf(sz, "%02d/%02d/%02d ", d.month(), d.day(), d.year());
-		Serial.print(sz);
-	}
-
-	if (!t.isValid()) {
-		Serial.print(F("******** "));
-	} else {
-		char sz[32];
-		sprintf(sz, "%02d:%02d:%02d ", t.hour(), t.minute(), t.second());
-		Serial.print(sz);
-	}
-
-	printInt(d.age(), d.isValid(), 5);
-	smartDelay(0);
-}
-
-static void printStr(const char *str, int len) {
-	int slen = strlen(str);
-	for (int i=0; i<len; ++i) {
-		Serial.print(i<slen ? str[i] : ' ');
-	}
-	smartDelay(0);
-}
-
-void setup() {
-	Serial.begin(115200);
-	ss.begin(GPSBaud);
-
-	Serial.println(F("FullExample.ino"));
-	Serial.println(F("An extensive example of many interesting TinyGPSPlus features"));
-	Serial.print(F("Testing TinyGPSPlus library v. ")); Serial.println(TinyGPSPlus::libraryVersion());
-	Serial.println(F("by Mikal Hart"));
-	Serial.println();
-	Serial.println(F("Sats HDOP  Latitude   Longitude   Fix  Date       Time     Date Alt    Course Speed Card  Distance Course Card  Chars Sentences Checksum"));
-	Serial.println(F("           (deg)      (deg)       Age                      Age  (m)    --- from GPS ----  ---- to London  ----  RX    RX        Fail"));
-	Serial.println(F("----------------------------------------------------------------------------------------------------------------------------------------"));
-}
-
-void loop() {
-	static const double LONDON_LAT = 51.508131, LONDON_LON = -0.128002;
-
-	printInt(gps.satellites.value(), gps.satellites.isValid(), 5);
-	printFloat(gps.hdop.hdop(), gps.hdop.isValid(), 6, 1);
-	printFloat(gps.location.lat(), gps.location.isValid(), 11, 6);
-	printFloat(gps.location.lng(), gps.location.isValid(), 12, 6);
-	printInt(gps.location.age(), gps.location.isValid(), 5);
-	printDateTime(gps.date, gps.time);
-	printFloat(gps.altitude.meters(), gps.altitude.isValid(), 7, 2);
-	printFloat(gps.course.deg(), gps.course.isValid(), 7, 2);
-	printFloat(gps.speed.kmph(), gps.speed.isValid(), 6, 2);
-	printStr(gps.course.isValid() ? TinyGPSPlus::cardinal(gps.course.deg()) : "*** ", 6);
-
-	unsigned long distanceKmToLondon =
-		(unsigned long)TinyGPSPlus::distanceBetween(
-				gps.location.lat(),
-				gps.location.lng(),
-				LONDON_LAT, 
-				LONDON_LON) / 1000;
-	printInt(distanceKmToLondon, gps.location.isValid(), 9);
-
-	double courseToLondon =
-		TinyGPSPlus::courseTo(
-				gps.location.lat(),
-				gps.location.lng(),
-				LONDON_LAT, 
-				LONDON_LON);
-
-	printFloat(courseToLondon, gps.location.isValid(), 7, 2);
-
-	const char *cardinalToLondon = TinyGPSPlus::cardinal(courseToLondon);
-
-	printStr(gps.location.isValid() ? cardinalToLondon : "*** ", 6);
-
-	printInt(gps.charsProcessed(), true, 6);
-	printInt(gps.sentencesWithFix(), true, 10);
-	printInt(gps.failedChecksum(), true, 9);
-	Serial.println();
-
-	smartDelay(1000);
-
-	if (millis() > 5000 && gps.charsProcessed() < 10) {
-		Serial.println(F("No GPS data received: check wiring"));
-	}
-}
-*/
-// This custom version of delay() ensures that the gps object
-// is being "fed".
