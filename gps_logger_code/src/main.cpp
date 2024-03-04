@@ -9,7 +9,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 
-//#include <ElegantOTA.h>
+#include <ElegantOTA.h>
 #include <Adafruit_NeoPixel.h>
 #include <DNSServer.h>
 
@@ -19,6 +19,8 @@
 #define LED_PIN 15  // make sure to set this to the correct pin, ignored for Esp8266
 
 #define colorSaturation 128
+
+//testing log started on 19:12
 
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = Arduino pin number (most are valid)
@@ -154,6 +156,8 @@ void setup()  {
   strip.setBrightness(25);
   strip.show(); // Initialize all pixels to 'off'
   WiFi.softAPdisconnect();
+  Serial.println("booting!");
+  Serial.println("checking sd card:");
   if (SD.begin(SDchipSelect)) {
   	FSInfo fs_info;
   	SDFS.info(fs_info);
@@ -226,7 +230,7 @@ void setup()  {
 
   dnsServer.start(53, "*", WiFi.softAPIP());
 
-  //ElegantOTA.begin(&server);    // Start ElegantOTA
+  ElegantOTA.begin(&server);    // Start ElegantOTA
   // ElegantOTA callbacks
  // ElegantOTA.onStart(onOTAStart);
   //ElegantOTA.onProgress(onOTAProgress);
@@ -361,7 +365,13 @@ void loop() {
   if ((curr_ms - old_ms) > 10000) {
 	Serial.print("alive! ");
 	Serial.println(curr_ms);
+
+	if (run_term == true) {
+		term.print("alive! ");
+		term.println(curr_ms);
+	}
+
 	old_ms = curr_ms;
   }
-  //ElegantOTA.loop();
+  ElegantOTA.loop();
 } 
