@@ -59,6 +59,12 @@ int sat = 0;
 bool start_logging = false;
 bool logging_running = false;
 bool run_term = false;
+long total_distance = 0;
+long distance_from_start = 0;
+static float start_lat;
+static float start_lng;
+static float previous_lat;
+static float previous_lng;
 String latitude = "";
 String longtitude = "";
 String altitude = "";
@@ -79,7 +85,7 @@ IPAddress gateway(10,0,0,1);
 IPAddress subnet(255,255,255,0);
 
 //unsigned long ota_progress_millis = 0;
-
+#define batt_res_ratio 27
 String getSensorReadings(){
   readings["max"] = String(max_speed);
   readings["current"] =  String(current_speed);
@@ -87,6 +93,23 @@ String getSensorReadings(){
   readings["lat"] = latitude;
   readings["lon"] = longtitude;
   readings["date"] = time_day + "-" + time_month + "-" + time_year;
+  readings["batt"] = String(analogRead(A0) * (1.0 / 1023) * batt_res_ratio);
+  if (distance_from_start > 9999) {
+    readings["sdist"] = String(distance_from_start/1000) + " km";
+  } else {
+    readings["sdist"] = String(distance_from_start) + " m";
+  }
+
+  if (total_distance > 9999) {
+    readings["tdist"] = String(total_distance / 1000) + " km";
+  } else {
+    readings["tdist"] = String(total_distance) + " m";
+  }
+  readings["alt"] = altitude + " m";
+  readings["time"] = time_hour + ":" + time_minute + ":" + time_second;
+  readings["status"] = "test";
+  //readings["tdist"] = String(total_distance);
+  //readings["sdist"] = String(distance_from_start);
   String jsonString = JSON.stringify(readings);
   return jsonString;
 }
@@ -101,11 +124,17 @@ void handleTest() {
 void handleRoot() {
 
   //databuffer = String("<html><head><meta content=\"width=device-width\"><style> body{font-size: 56px; text-align:center; background-color:#11d0ed;}</style> <h1>GPS LOGGER<br> Max velocity: <a href=""/max"">max speed</a> <br>Current velocity: <a href=""/current"">current speed</a><br>Reset Data: <a href=""/reset"">reset</a><br>Start: <a href=""/start"">start</a><br>Stop log: <a href=""/stop"">stop</a><br>terminal: <a href=""/term.html"">terminal</a><br>update: <a href=""/update"">UPDATE</a></h1> <body>""</body></html>");
-  databuffer = MAIN_page;
+  databuffer = ws_html;
   server.send(200, "text/html", databuffer);
   databuffer.remove(0);
 }
 
+void handleTerm() {
+  databuffer = String("to be implemented");
+  server.send(200, "text/html", databuffer);
+  databuffer.remove(0);
+}
+/*
 void max_val()  {
 
   databuffer = String("max value: ") + String(max_speed) + String("kmph") + "\n";
@@ -148,7 +177,7 @@ void stop_log() {
 	server.send(200, "text/html", "<html><head><meta content=\"width=device-width\"><style> body{font-size: 56px; text-align:center; background-color:#11d0ed;}</style> <h1></h1> <body><p><a href=/>home</a></p></body></html>");
 	start_logging = false;
 }
-/*
+
 void onOTAStart() {
   // Log when OTA has started
   Serial.println("OTA update started!");
@@ -204,21 +233,33 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
     case WStype_TEXT:
       //Serial.printf("got data: %s\n", num, payload);
       if (strcmp((char*)payload, "StartButton") == 0) {
-        Serial.println("start looginh");
+        if (gps.location.isValid() == true ) {
+          start_lat = gps.location.lat();
+          start_lng = gps.location.lng();
+          previous_lat = gps.location.lat();
+          previous_lng = gps.location.lng();
+          Serial.println("start looginh");
         //webSocket.sendTXT(num, "start\n");
         start_logging = true;
+        } else {
+          Serial.println("nope, not starting");
+        }
+        
       } else if (strcmp((char*)payload, "StopButton") == 0) {
         Serial.println("stop logging");
         //webSocket.sendTXT(num, "stop\n");
         start_logging = false;
       } else if (strcmp((char*)payload, "data") == 0) {
         Serial.println("received a request");
+
         String values = getSensorReadings();
         webSocket.sendTXT(num, values);
       } else if (strcmp((char*)payload, "ResetButton") == 0) {
         Serial.println("reset");
         //webSocket.sendTXT(num, "stop\n");
         max_speed = 0.0;
+        total_distance = 0;
+        distance_from_start = 0;
       }   
       break;
       case WStype_ERROR:
@@ -312,11 +353,12 @@ void setup()  {
   Serial.print("Soft-AP IP address = ");
   Serial.println(WiFi.softAPIP());
   server.on("/", handleRoot);
-  server.on("/max", max_val);
-  server.on("/current", current_val);
-  server.on("/reset", reset);
-  server.on("/start", start_log);
-  server.on("/stop", stop_log);
+  server.on("/term", handleTerm);
+  //server.on("/max", max_val);
+  //server.on("/current", current_val);
+  //server.on("/reset", reset);
+  //server.on("/start", start_log);
+  //server.on("/stop", stop_log);
   server.on("/test", handleTest);
   server.onNotFound(handleRoot);
 
@@ -362,29 +404,10 @@ void loop() {
         time_hour = String(gps.time.hour());
         time_minute = String(gps.time.minute());
         time_second = String(gps.time.second());
-
+        
         current_speed = gps.speed.kmph();
         sat = gps.satellites.value();
-        
-        if (run_term == true) {
-          term.print(sat);
-          term.print("  ");
-          term.print(latitude);
-          term.print("  ");
-          term.print(longtitude);
-          term.print("  ");
-          term.print(time_day);
-          term.print("-");
-          term.print(time_month);
-          term.print("-");
-          term.print(time_year);
-          term.print("  ");
-          term.print(time_hour);
-          term.print("-");
-          term.print(time_minute);
-          term.print("-");
-          term.println(time_second);
-        }  
+
         if (current_speed > max_speed) {
 
           max_speed = current_speed;
@@ -422,7 +445,16 @@ void loop() {
                   term.println("Can't save data");
             }
           } 
-		
+          distance_from_start = gps.distanceBetween(start_lat, start_lng, gps.location.lat(), gps.location.lng());
+          long temp_dist = gps.distanceBetween(previous_lat, previous_lng, gps.location.lat(), gps.location.lng());
+          if (temp_dist >= 5 ) {
+            total_distance = total_distance + temp_dist;
+            temp_dist = 0;
+          }
+          
+          previous_lat = gps.location.lat();
+          previous_lng = gps.location.lng();
+          
       	} else {
 			      strip.setPixelColor(0, strip.Color(0, 0, 255));
 			      strip.show();

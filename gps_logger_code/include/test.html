@@ -69,98 +69,24 @@
       
   </script>
 <style> 
-body {
-  background-color: #181a1f;  
-}  
-.start {
-  padding: 60px 60px;
-    font-size: 36px;
-    text-align: center;
-    outline: none;
-    color: #fff;
-    background-color: #0f8b8d;
-    border: none;
-    border-radius: 5px;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: rgba(0,0,0,0);
-    box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
-     
-   }
+  body {
+    background-color: #181a1f;  
+  }  
 
-   .start:active {
-    background-color: #0a6163;
-    box-shadow: 2 2px #CDCDCD;
-    transform: translateY(2px);
-   }
-   
-   .stop {
-    padding: 60px 60px;
-    font-size: 36px;
+  .content {
     text-align: center;
-    outline: none;
-    color: #fff;
-    background-color: #0f8b8d;
-    border: none;
-    border-radius: 5px;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: rgba(0,0,0,0);
-    box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
+  padding: 50px;
+  font: 15px Arial, sans-serif;
+  }
+.item-grid {
     
-   }
-
-   .stop:active {
-    background-color: #0a6163;
-    box-shadow: 2 2px #CDCDCD;
-    transform: translateY(2px);
-   }
-   .reset {
-    padding: 60px 60px;
-    font-size: 36px;
-    text-align: center;
-    outline: none;
-    color: #fff;
-    background-color: #0f8b8d;
-    border: none;
-    border-radius: 5px;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: rgba(0,0,0,0);
-    box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
-    
-   }
-
-   .reset:active {
-    background-color: #0a6163;
-    box-shadow: 2 2px #CDCDCD;
-    transform: translateY(2px);
-   }
-   
-    .content {
-    padding: 50px;
-    }
-.card-grid {
-    
-    max-width: 800px;
-    margin: auto;
-    display: inline-grid;
-  grid-template-columns: auto auto auto;
-   
-    column-gap: 50px;
-    row-gap: 50px;
+  max-width: 1000px;
+  margin: 0px;
+  display: inline-grid;
+  grid-template-columns: 250px 250px 250px;
+  grid-template-rows: 250px 250px 250px 250px;  
+  column-gap: 25px;
+  row-gap: 25px;
 
 
 }
@@ -169,6 +95,14 @@ body {
     background-color: #0a6163;
     box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
 }
+.batt-card {
+    grid-column-start: 1;
+    grid-column-end: 4;
+    text-align: center;
+    background-color: #0a6163;
+    box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
+}
+
 .card-title {
     font-size: 36px;
     font-weight: bold;
@@ -178,70 +112,100 @@ body {
     font-size: 36px;
     color: white;
 }
-.genbut {
-  padding: 60px 60px;
-    font-size: 36px;
-    text-align: center;
-    outline: none;
-    color: #fff;
-    background-color: #0f8b8d;
-    border: none;
-    border-radius: 5px;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: rgba(0,0,0,0);
-    box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
+.button {
+  width: 250px;
+  height: 250px;
+  font-size: 36px;
+  text-align: center;
+  outline: none;
+  color: #fff;
+  background-color: #0f8b8d;
+  border: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+  box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
 }
 
-.genbut:active {
-    background-color: #0a6163;
-    box-shadow: 2 2px #CDCDCD;
-    transform: translateY(2px);
-   }
+.button:active {
+  background-color: #0a6163;
+  box-shadow: 2 2px #CDCDCD;
+  transform: translateY(2px);
+}
+
+.title-text {
+  color: #0f8b8d;
+  font-size: 64px;
+  margin-top: -48px;
+  margin-bottom: 17px;
+  font-weight: bold;  
+}
 
 </style>
 </head>
   <body>  
-    <div class ="buts">
-      
-    </div>
     <div class="content">
-      <div class="card-grid">
+      <p class="title-text">GPS LOGGER</p>
+      <div class="item-grid">
         
         <div class="card">
           <p class="card-title"> Max</p>
           <p class="reading"><span id="max"></span> kmh</p>
         </div>
         <div class="card">
-          <p class="card-title"> Current</p>
+          <p class="card-title">Current</p>
           <p class="reading"><span id="current"></span> kmh</p>
         </div>
         <div class="card">
-          <p class="card-title"> Sats</p>
+          <p class="card-title">Sats</p>
           <p class="reading"><span id="sats"></span> </p>
         </div>
         <div class="card">
-          <p class="card-title"> latitude</p>
+          <p class="card-title">latitude</p>
           <p class="reading"><span id="lat"></span> </p>
         </div>
         <div class="card">
-          <p class="card-title"> longtitude</p>
+          <p class="card-title">longtitude</p>
           <p class="reading"><span id="lon"></span> </p>
         </div>
         <div class="card">
-          <p class="card-title"> Date</p>
+          <p class="card-title">Date</p>
           <p class="reading"><span id="date"></span> </p>
         </div>
-        <p><button id="stop" class="stop">Stop</button></p>
-        <p><button id="start" class="start">Start</button></p>
-        <p><button id="reset" class="reset">Reset</button></p>
-        <p><button class="genbut" onclick="document.location='/'">Term</button></p>
-        <p><button class="genbut" onclick="document.location='/'">Home</button></p>
-        <p><button class="genbut" onclick="document.location='/update'">Update</button></p> 
+        <div class="card">
+          <p class="card-title">Total distance</p>
+          <p class="reading"><span id="tdist"></span> </p>
+        </div>
+        <div class="card">
+          <p class="card-title">Dist from start</p>
+          <p class="reading"><span id="sdist"></span> </p>
+        </div>
+        <div class="card">
+          <p class="card-title">Time</p>
+          <p class="reading"><span id="time"></span> </p>
+        </div>
+        <div class="card">
+          <p class="card-title">Dist from start</p>
+          <p class="reading"><span id="sdist"></span> </p>
+        </div>
+        <div class="card">
+          <p class="card-title">altitude</p>
+          <p class="reading"><span id="alt"></span> </p>
+        </div>
+        <div class="card">
+          <p class="card-title">Battery</p>
+          <p class="reading"><span id="batt"></span> V</p>
+        </div>
+        <p><button id="stop" class="button">Stop log</button></p>
+        <p><button id="start" class="button">Start log</button></p>
+        <p><button id="reset" class="button">Reset val</button></p>
+        <p><button class="button" onclick="document.location='/term'">Terminal</button></p>
+        <p><button class="button" onclick="document.location='/'">Home</button></p>
+        <p><button class="button" onclick="document.location='/update'">Update</button></p> 
       </div>
     </div>
   </body>
