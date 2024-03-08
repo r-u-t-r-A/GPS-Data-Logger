@@ -65,6 +65,7 @@ static float start_lat;
 static float start_lng;
 static float previous_lat;
 static float previous_lng;
+int previous_seconds = 0;
 String latitude = "";
 String longtitude = "";
 String altitude = "";
@@ -76,6 +77,7 @@ String time_minute = "";
 String time_second = "";
 String databuffer = "";
 String file_name = "def.csv";
+String logger_status = "";
 
 ESP8266WebServer server(80);
 DNSServer dnsServer;
@@ -85,7 +87,7 @@ IPAddress gateway(10,0,0,1);
 IPAddress subnet(255,255,255,0);
 
 //unsigned long ota_progress_millis = 0;
-#define batt_res_ratio 27
+#define batt_res_ratio 21.818
 String getSensorReadings(){
   readings["max"] = String(max_speed);
   readings["current"] =  String(current_speed);
@@ -107,7 +109,7 @@ String getSensorReadings(){
   }
   readings["alt"] = altitude + " m";
   readings["time"] = time_hour + ":" + time_minute + ":" + time_second;
-  readings["status"] = "test";
+  readings["status"] = logger_status;
   //readings["tdist"] = String(total_distance);
   //readings["sdist"] = String(distance_from_start);
   String jsonString = JSON.stringify(readings);
@@ -234,13 +236,22 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       //Serial.printf("got data: %s\n", num, payload);
       if (strcmp((char*)payload, "StartButton") == 0) {
         if (gps.location.isValid() == true ) {
+          
           start_lat = gps.location.lat();
           start_lng = gps.location.lng();
           previous_lat = gps.location.lat();
           previous_lng = gps.location.lng();
           Serial.println("start looginh");
         //webSocket.sendTXT(num, "start\n");
-        start_logging = true;
+          start_logging = true;
+          file_name.remove(0);
+          file_name = time_day + time_month + "H" + time_hour + time_minute + ".csv";
+          File dataFile = SD.open(file_name, FILE_WRITE);
+          
+          if (dataFile) {
+            dataFile.println("type,latitude,longitude,alt,speed,time,tdist,sdist,color");
+            dataFile.close();
+          }
         } else {
           Serial.println("nope, not starting");
         }
@@ -413,7 +424,9 @@ void loop() {
           max_speed = current_speed;
         }
 
-        if (start_logging == true) {
+        if (start_logging == true && previous_seconds != gps.time.second()) {
+          logger_status.remove(0);
+          logger_status = "logging";
         
           strip.setPixelColor(0, strip.Color(0, 255, 0));
           strip.show();
@@ -438,28 +451,36 @@ void loop() {
             dataFile.print(time_minute);
             dataFile.print(":");
             dataFile.print(time_second);
+            dataFile.print(",");
+            dataFile.print(String(total_distance));
+            dataFile.print(",");
+            dataFile.print(String(distance_from_start));
             dataFile.println(",blue");
             dataFile.close();
           } else {
-             if (run_term == true) {
-                  term.println("Can't save data");
-            }
+             logger_status = logger_status + " !SD";
           } 
           distance_from_start = gps.distanceBetween(start_lat, start_lng, gps.location.lat(), gps.location.lng());
           long temp_dist = gps.distanceBetween(previous_lat, previous_lng, gps.location.lat(), gps.location.lng());
-          if (temp_dist >= 5 ) {
+          
+          if (temp_dist >= 5 && temp_dist < 100) {
             total_distance = total_distance + temp_dist;
             temp_dist = 0;
+            previous_lat = gps.location.lat();
+            previous_lng = gps.location.lng();
           }
+          previous_seconds = gps.time.second();
           
-          previous_lat = gps.location.lat();
-          previous_lng = gps.location.lng();
-          
-      	} else {
+        } else if (start_logging == false) {
 			      strip.setPixelColor(0, strip.Color(0, 0, 255));
 			      strip.show();
+            logger_status.remove(0);
+            logger_status = "rdy";
 		    }
 	  
+      } else {
+        logger_status.remove(0);
+            logger_status = "w8-4-fix";
       }
 
     } else {
