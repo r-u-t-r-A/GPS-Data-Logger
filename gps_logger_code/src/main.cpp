@@ -13,8 +13,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <DNSServer.h>
 
-#include "WiFiTerm.h"
-
 #include "index.h"
 
 #include <WebSocketsServer.h>
@@ -385,7 +383,6 @@ void setup()  {
   server.begin();
   //Serial.println("HTTP server started");
 
-  term.begin(server);
   //Serial.println("websocket started");
 /*
   pinMode(16, OUTPUT);
@@ -432,10 +429,6 @@ void loop() {
           strip.show();
           File dataFile = SD.open(file_name, FILE_WRITE);
           
-          if (run_term == true) {
-            term.print("writing to:"); term.println(file_name);
-          } 
-  
           if (dataFile) {
             dataFile.print("T,");
             dataFile.print(latitude);
@@ -491,31 +484,12 @@ void loop() {
   
   } 
 
-  if (term.available()) {
-	  char read = term.read();
-	  switch (read) {
-	  case 'l':
-		  run_term = true;
-		  term.println("start log");
-		break;
-	
-	  case 's':
-		  run_term = false;
-		  term.println("stop log");
-		break;
-	  }
-  }
-  term.handleClient(); 
   dnsServer.processNextRequest();
   server.handleClient();
   if ((curr_ms - old_ms) > 10000) {
 	  Serial.print("alive! ");
 	  Serial.println(curr_ms);
 
-	 if (run_term == true) {
-		  term.print("alive! ");
-		  term.println(curr_ms);
-	  } 
 
 	  old_ms = curr_ms;
   }
